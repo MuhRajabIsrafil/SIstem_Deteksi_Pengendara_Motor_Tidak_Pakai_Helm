@@ -47,7 +47,7 @@ def first_container(container_input, mydb, mycursor):
 
     if generate_btn:
         if address != "" and start_date is not None and start_time is not None and video_file is not None:
-            model_path = "../model/yolov8_model/yolov8_model_2_augmentations.pt"
+            model_path = "../model/yolov8_model/yolov8_model_2_augmentations(skenario3).pt"
             model = load_model(model_path)
 
             cap = cv2.VideoCapture(ori_video_path + "/" + video_file.name)
