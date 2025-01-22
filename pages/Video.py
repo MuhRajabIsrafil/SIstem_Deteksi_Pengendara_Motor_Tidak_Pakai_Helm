@@ -47,7 +47,7 @@ def first_container(container_input, mydb, mycursor):
 
     if generate_btn:
         if address != "" and start_date is not None and start_time is not None and video_file is not None:
-            model_path = "../model/yolov8_model/yolov8_model_2_augmentations(skenario3).pt"
+            model_path = "../model/yolov8_model/yolov8_model_no_augmentation(skenario1).pt"
             model = load_model(model_path)
 
             cap = cv2.VideoCapture(ori_video_path + "/" + video_file.name)
@@ -71,7 +71,9 @@ def first_container(container_input, mydb, mycursor):
             make_folder = start_time + " - " + end_time
 
             if not os.path.join("../results/" + make_folder):
-                function_system.MakeFolder(make_folder)
+                os.mkdir('../results/' + make_folder)
+                os.mkdir('../results/' + make_folder + "/images")
+                os.mkdir('../results/' + make_folder + "/videos")
             else:
                 folders = os.listdir("../results")
                 folders_name = [item for item in folders if os.path.isdir(os.path.join("../results", item))]
@@ -91,7 +93,10 @@ def first_container(container_input, mydb, mycursor):
                         make_folder = check_folder
                         break
 
-                function_system.MakeFolder(make_folder)
+                # function_system.MakeFolder(make_folder)
+                os.mkdir('../results/' + make_folder)
+                os.mkdir('../results/' + make_folder + "/images")
+                os.mkdir('../results/' + make_folder + "/videos")
 
             finish_generate = False
 
@@ -121,6 +126,13 @@ def second_container(container_input, cap, model, frames, fps, address, given_ti
 
     generate_container.video(video_file)
 
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    directory_video = '../results/' + make_folder + "/videos"
+    filename_video = "result_video.mp4"
+
+    output_video = cv2.VideoWriter(os.path.join(directory_video, filename_video), fourcc, fps,
+                                   (width_dimension, height_dimension))
+
     count_image = 0
     time = given_time
 
@@ -135,7 +147,8 @@ def second_container(container_input, cap, model, frames, fps, address, given_ti
                 detect_object = model.predict(frame)
 
                 if width_dimension == 3840 and height_dimension == 2160:  # 4k/2160p
-                    annotated_frame = function_system.plot_bboxes(frame, detect_object[0].boxes.data, conf=0.5, height=950)
+                    annotated_frame = function_system.plot_bboxes(frame, detect_object[0].boxes.data, conf=0.5,
+                                                                  height=950)
 
                     cv2.putText(annotated_frame[0], "Address: " + address, (10, 75), 5, 3,
                                 (32, 38, 53), 3, cv2.LINE_AA)
@@ -148,7 +161,8 @@ def second_container(container_input, cap, model, frames, fps, address, given_ti
                         cv2.putText(annotated_frame[0], "Time: " + time, (10, 150), 5, 3,
                                     (32, 38, 53), 3, cv2.LINE_AA)
                 elif width_dimension == 1920 and height_dimension == 1080:  # FHD/1080p
-                    annotated_frame = function_system.plot_bboxes(frame, detect_object[0].boxes.data, conf=0.5, height=300)
+                    annotated_frame = function_system.plot_bboxes(frame, detect_object[0].boxes.data, conf=0.5,
+                                                                  height=300)
 
                     cv2.putText(annotated_frame[0], "Address: " + address, (10, 75), 5, 2,
                                 (32, 38, 53), 3, cv2.LINE_AA)
@@ -173,6 +187,8 @@ def second_container(container_input, cap, model, frames, fps, address, given_ti
                     else:
                         cv2.putText(annotated_frame[0], "Time: " + time, (10, 150), 5, 2,
                                     (32, 38, 53), 3, cv2.LINE_AA)
+
+                output_video.write(annotated_frame[0])
 
                 if annotated_frame[1]:
                     for m in annotated_frame[1]:
@@ -247,13 +263,13 @@ def second_container(container_input, cap, model, frames, fps, address, given_ti
                                             merge_frame_2 = function_system.get_concat_h_resize(annotated_frame[0],
                                                                                                 merge_frame)
 
-                                        directory = '../results/' + make_folder
-                                        filename = 'results_images_' + str((count_image + 1)) + '.jpg'
+                                        directory_images = '../results/' + make_folder + "/images"
+                                        filename_images = 'results_images_' + str((count_image + 1)) + '.jpg'
 
-                                        cv2.imwrite(os.path.join(directory, filename), merge_frame_2)
+                                        cv2.imwrite(os.path.join(directory_images, filename_images), merge_frame_2)
 
-                                        sql = "insert into results(address,datetime,image) values(%s,%s,%s)"
-                                        val = (address, make_folder, filename)
+                                        sql = "insert into results(address,datetime,image,video) values(%s,%s,%s,%s)"
+                                        val = (address, make_folder, filename_images, filename_video)
                                         mycursor.execute(sql, val)
                                         mydb.commit()
 
@@ -269,34 +285,7 @@ def second_container(container_input, cap, model, frames, fps, address, given_ti
 
         if finish_generate:
             st.success("Successfully Generate")
-            image_dir = f'../results/{make_folder}'
-
-            sql_file = f'Select image from results where datetime = "{make_folder}"'
-            mycursor.execute(sql_file)
-
-            files = mycursor.fetchall()
-            fix_files = function_system.fix_array(files)
-
-            images_path_array = []
-            for file in fix_files:
-                images_path_array.append(image_dir + '/' + file)
-
-            st.subheader("Results")
-
-            num_columns = 5
-            cols_image = st.columns(num_columns)
-
-            if len(images_path_array) == 0:
-                no_img_html = """
-                <div style="text-align: center"> No Image Result In This Folder </div>
-                """
-
-                st.markdown(no_img_html, unsafe_allow_html=True)
-            else:
-                for i, image_path in enumerate(images_path_array):
-                    with cols_image[i % num_columns]:
-                        st.image(image_path, caption=f'Result Image {i + 1}', use_column_width=True)
-
+            
             back_container = generate_container.button("Generate More")
             if back_container:
                 first_container(container)
