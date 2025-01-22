@@ -18,7 +18,7 @@ def app(mycursor):
         option_folder = st.selectbox("Select a Folder", unique_data, index=None, placeholder="Select a Folder File...")
 
         if option_folder:
-            image_dir = f'{results_path}/{option_folder}'
+            image_dir = f'{results_path}/{option_folder}/images'
 
             sql_file = f'Select image from results where datetime = "{option_folder}"'
             mycursor.execute(sql_file)
