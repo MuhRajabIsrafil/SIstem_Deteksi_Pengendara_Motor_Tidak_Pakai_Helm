@@ -1,4 +1,3 @@
-import os
 from datetime import datetime
 import cv2
 import numpy as np
@@ -50,10 +49,6 @@ def get_middle_coordinates(bbox, classes):
         return np.array([x_min, y_min, x_max, y_middle])
     else:
         return np.array([x_min, y_middle, x_max, y_max])
-
-
-def MakeFolder(folder):
-    os.mkdir('../results/' + folder)
 
 
 def box_label(image, box, label='', color=(128, 128, 128), txt_color=(255, 255, 255)):
