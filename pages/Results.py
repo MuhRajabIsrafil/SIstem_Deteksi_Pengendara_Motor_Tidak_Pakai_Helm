@@ -1,5 +1,6 @@
 import streamlit as st
 from functions import function_system
+from moviepy.editor import VideoFileClip
 
 
 def app(mycursor):
@@ -19,6 +20,11 @@ def app(mycursor):
 
         if option_folder:
             image_dir = f'{results_path}/{option_folder}/images'
+            video_dir = f'{results_path}/{option_folder}/videos/result_video.mp4'
+
+            video = VideoFileClip(video_dir)
+            video.write_videofile(f'{results_path}/{option_folder}/videos/output_video.mp4', codec="libx264", audio_codec="aac")
+            video_dir_output = f'{results_path}/{option_folder}/videos/output_video.mp4'
 
             sql_file = f'Select image from results where datetime = "{option_folder}"'
             mycursor.execute(sql_file)
@@ -31,6 +37,7 @@ def app(mycursor):
                 images_path_array.append(image_dir + '/' + file)
 
             st.subheader("Results")
+            st.video(video_dir_output)
 
             num_columns = 5
             cols_image = st.columns(num_columns)
