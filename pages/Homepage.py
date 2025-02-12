@@ -5,18 +5,23 @@ import mysql.connector
 from streamlit_option_menu import option_menu
 
 
+# Menghubungkan aplikasi ke database MySQL
 mydb = mysql.connector.connect(
     host="localhost",
     user="root",
     password="",
     database="streamlit"
 )
+# Membuat objek cursor untuk mengeksekusi query SQL
 mycursor = mydb.cursor()
 
+# Mengonfigurasi halaman pada Framework Streamlit
 st.set_page_config(page_title="Helmet Detection", page_icon="👮‍♂️", layout="wide", initial_sidebar_state="expanded")
 
 
+# Fungsi utama untuk menjalankan Framework Streamlit
 def main():
+    # Membuat sidebar
     with st.sidebar:
         app = option_menu(
             menu_title='Menu',
@@ -33,6 +38,7 @@ def main():
             }
         )
 
+    # Menjalankan bagian web berdasarkan menu yang dipilih
     if app == "Video":
         Video.app(mydb, mycursor)
     if app == "Results":
