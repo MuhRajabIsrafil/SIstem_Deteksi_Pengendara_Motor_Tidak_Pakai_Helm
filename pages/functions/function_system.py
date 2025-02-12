@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 
 
+# Mengubah format koordinat bounding box dari format xyxy ke format xywh
 def xyxy_to_xywh(xyxy):
     x_temp = (xyxy[0] + xyxy[2]) / 2
     y_temp = (xyxy[1] + xyxy[3]) / 2
@@ -12,6 +13,7 @@ def xyxy_to_xywh(xyxy):
     return np.array([int(x_temp), int(y_temp), int(w_temp), int(h_temp)])
 
 
+# Menggabungkan dua gambar secara horizontal
 def get_concat_h_resize(im1, im2, resize_big_image=True):
     if im1.shape[0] == im2.shape[0]:
         _im1 = im1
@@ -27,6 +29,7 @@ def get_concat_h_resize(im1, im2, resize_big_image=True):
     return dst
 
 
+# Menggabungkan dua gambar secara vertikal
 def get_concat_v_resize(im1, im2, resize_big_image=True):
     if im1.shape[1] == im2.shape[1]:
         _im1 = im1
@@ -42,6 +45,7 @@ def get_concat_v_resize(im1, im2, resize_big_image=True):
     return dst
 
 
+# Menghitung koordinat tengah vertikal untuk bounding box
 def get_middle_coordinates(bbox, classes):
     x_min, y_min, x_max, y_max = bbox
     y_middle = round((y_min + y_max) / 2)
@@ -51,6 +55,7 @@ def get_middle_coordinates(bbox, classes):
         return np.array([x_min, y_middle, x_max, y_max])
 
 
+# Memberikan bounding box pada gambar dengan label dan warna tertentu
 def box_label(image, box, label='', color=(128, 128, 128), txt_color=(255, 255, 255)):
     lw = max(round(sum(image.shape) / 2 * 0.003), 2)
     p1, p2 = (int(box[0]), int(box[1])), (int(box[2]), int(box[3]))
@@ -70,6 +75,7 @@ def box_label(image, box, label='', color=(128, 128, 128), txt_color=(255, 255, 
                     lineType=cv2.LINE_AA)
 
 
+# Mengubah waktu per detik
 def get_time(time):
     sec = 1
     date_format_str = '%d/%m/%Y %H:%M:%S'
@@ -81,6 +87,7 @@ def get_time(time):
     return final_time
 
 
+# Memperbaiki array dengan menghapus nilai duplikat
 def fix_array(data):
     fix_values = []
 
@@ -91,11 +98,13 @@ def fix_array(data):
     return fix_values
 
 
+# Membuat background dengan ukuran tertentu
 def Make_BG(size):
     blank_image = np.zeros(size, dtype=np.uint8)
     return blank_image
 
 
+# Menggambar bounding boxes pada gambar dengan label, warna, dan confidence score
 def plot_bboxes(image, boxes, labels=[], colors=[], score=True, conf=None, height=None):
     # Define labels
     if not labels:
