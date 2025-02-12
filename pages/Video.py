@@ -9,18 +9,23 @@ from stqdm import stqdm
 from time import sleep
 
 
+# Fungsi untuk memuat model YOLOv8 dari path yang diberikan
 def load_model(model_path):
     model = YOLO(model_path)
     return model
 
 
+# Container pertama untuk input data (alamat, tanggal, waktu, dan video)
 def first_container(container_input, mydb, mycursor):
+    # Menghapus konten container sebelumnya
     container_input.empty()
     container = container_input.container(border=1)
 
+    # Input untuk alamat
     address = container.text_area("Address:", max_chars=100, placeholder="Input Address")
     empty_address = container.empty()
 
+    # Input untuk tanggal dan waktu
     col1, col2 = container.columns(2)
 
     with col1:
@@ -31,11 +36,14 @@ def first_container(container_input, mydb, mycursor):
         start_time = st.time_input("Enter Start Time", value=None)
         empty_time = st.empty()
 
+    # Upload video
     video_file = container.file_uploader("Upload Video", type=["mp4", "mkv", "avi", "mov", "wmv", "flv", "webm"])
     empty_video = container.empty()
 
+    # Lokasi penyimpanan video
     ori_video_path = "../original_video"
 
+    # Proses menyimpan video yang di-upload
     if video_file is not None:
         video_bytes = video_file.name
         video_upload = open(os.path.join(ori_video_path, video_bytes), mode="wb")
@@ -43,11 +51,13 @@ def first_container(container_input, mydb, mycursor):
         with video_upload as f:
             f.write(video_file.read())
 
+    # Button untuk memulai proses deteksi
     generate_btn = container.button(label="Generate")
 
+    # Validasi inputan sebelum memulai pemrosesan
     if generate_btn:
         if address != "" and start_date is not None and start_time is not None and video_file is not None:
-            model_path = "../model/yolov8_model/yolov8_model_no_augmentation(skenario1).pt"
+            model_path = "../model/yolov8_model/yolov8_model_2_augmentations(skenario3).pt"
             model = load_model(model_path)
 
             cap = cv2.VideoCapture(ori_video_path + "/" + video_file.name)
@@ -100,9 +110,11 @@ def first_container(container_input, mydb, mycursor):
 
             finish_generate = False
 
+            # Memulai pemrosesan video
             second_container(container_input, cap, model, frames, fps, address, given_time, make_folder, video_file,
                              finish_generate, width_dimension, height_dimension, mydb, mycursor)
         else:
+            # Menampilkan error jika input tidak lengkap
             if address == "":
                 empty_address.error("Please Input an Address")
 
@@ -116,8 +128,10 @@ def first_container(container_input, mydb, mycursor):
                 empty_video.error("Please Insert a Video")
 
 
+# Container kedua untuk memproses video frame by frame
 def second_container(container_input, cap, model, frames, fps, address, given_time, make_folder, video_file,
                      finish_generate, width_dimension, height_dimension, mydb, mycursor):
+    # Menghapus konten container sebelumnya
     container_input.empty()
     container = st.empty()
     generate_container = container.container(border=1)
@@ -126,6 +140,7 @@ def second_container(container_input, cap, model, frames, fps, address, given_ti
 
     generate_container.video(video_file)
 
+    # Menyiapkan untuk menyimpan video yang sudah dianotasi
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     directory_video = '../results/' + make_folder + "/videos"
     filename_video = "result_video.mp4"
@@ -136,16 +151,20 @@ def second_container(container_input, cap, model, frames, fps, address, given_ti
     count_image = 0
     time = given_time
 
+    # Proses video
     with generate_container:
         for step in stqdm(range(frames), desc="Processing Video"):
             sleep(0.01)
 
+            # Membaca frame dari video
             cap.set(cv2.CAP_PROP_POS_FRAMES, step)
             success, frame = cap.read()
 
             if success:
+                # Deteksi objek pada frame
                 detect_object = model.predict(frame)
 
+                # Membuat bounding boxes sesuai resolusi video
                 if width_dimension == 3840 and height_dimension == 2160:  # 4k/2160p
                     annotated_frame = function_system.plot_bboxes(frame, detect_object[0].boxes.data, conf=0.5,
                                                                   height=950)
@@ -188,24 +207,31 @@ def second_container(container_input, cap, model, frames, fps, address, given_ti
                         cv2.putText(annotated_frame[0], "Time: " + time, (10, 150), 5, 2,
                                     (32, 38, 53), 3, cv2.LINE_AA)
 
+                # Menyimpan frame yang sudah dianotasi
                 output_video.write(annotated_frame[0])
 
+                # Proses untuk mendeteksi objek (pengendara, pelat, dan motor)
                 if annotated_frame[1]:
+                    # Untuk setiap motor yang terdeteksi
                     for m in annotated_frame[1]:
                         bb_motorcycle = [int(m[0]), int(m[1]), int(m[2]), int(m[3])]
 
+                        # Filter objek motor dan helm yang terdeteksi
                         crop_bb_no_helmet = function_system.get_middle_coordinates(bb_motorcycle, classes="no_helmet")
                         crop_bb_plate = function_system.get_middle_coordinates(bb_motorcycle, classes="plate")
 
+                        # Jika pengendara terdeteksi tidak mengenakan helm
                         if annotated_frame[2]:
                             for nh in annotated_frame[2]:
                                 bb_no_helmet = [int(nh[0]), int(nh[1]), int(nh[2]), int(nh[3])]
 
+                                # Filter apakah helm berada dalam bounding box motor
                                 if crop_bb_no_helmet[0] < bb_no_helmet[0] < bb_no_helmet[2] < crop_bb_no_helmet[2] and \
                                         crop_bb_no_helmet[1] < bb_no_helmet[1] < bb_no_helmet[3] < crop_bb_no_helmet[3]:
                                     crop_motorcycle = annotated_frame[0][bb_motorcycle[1]:bb_motorcycle[3],
                                                       bb_motorcycle[0]:bb_motorcycle[2]]
 
+                                    # Memeriksa jika pelat nomor terdeteksi di dalam bb motor
                                     if annotated_frame[3]:
                                         plate_detected_array = []
 
@@ -216,12 +242,13 @@ def second_container(container_input, cap, model, frames, fps, address, given_ti
                                                     crop_bb_plate[
                                                         1] < plate[1] < plate[3] < crop_bb_plate[3]:
                                                 plate_detected_array.append(
-                                                    True)  # Plate inside the bounding box of motorcycle
+                                                    True)  # Pelat terdeteksi di dalam bb motor
                                             else:
                                                 plate_detected_array.append(
-                                                    False)  # Plate outside the bounding box of motorcycle
+                                                    False)  # Pelat tidak terdeteksi
 
                                         if True in plate_detected_array:
+                                            # Resize pelat jika terdeteksi
                                             resize_plate = []
 
                                             for plate_count, plate_value in enumerate(annotated_frame[3]):
@@ -229,21 +256,27 @@ def second_container(container_input, cap, model, frames, fps, address, given_ti
                                                     bb_plate = [int(plate_value[0]), int(plate_value[1]),
                                                                 int(plate_value[2]), int(plate_value[3])]
 
+                                                    # Crop gambar pelat dari frame
                                                     crop_plate = annotated_frame[0][bb_plate[1]:bb_plate[3],
                                                                  bb_plate[0]:bb_plate[2]]
 
                                                     new_width = int(crop_plate.shape[1] * 5)
                                                     new_height = int(crop_plate.shape[0] * 5)
 
+                                                    # Resize gambar pelat
                                                     resize_plate = cv2.resize(crop_plate, (new_width, new_height))
 
+                                            # Menggabungkan gambar motor dengan pelat yang sudah diresize
                                             merge_frame = function_system.get_concat_v_resize(crop_motorcycle,
                                                                                               resize_plate)
+                                            # Menggabungkan frame dengan hasil gabungan motor + pelat
                                             merge_frame_2 = function_system.get_concat_h_resize(annotated_frame[0],
                                                                                                 merge_frame)
                                         else:
+                                            # Menampilkan pesan jika pelat tidak terdeteksi
                                             plate_not_detected = "Plate\nNot Detected"
 
+                                            # Membuat gambar kosong sebagai background image
                                             blank_plate = function_system.Make_BG([500, 600, 3])
                                             blank_plate.fill(0)
 
@@ -251,6 +284,7 @@ def second_container(container_input, cap, model, frames, fps, address, given_ti
                                             x_start = int(blank_plate.shape[1])
                                             y_increment = 100
 
+                                            # Menambahkan teks "Plate Not Detected" ke dalam background image
                                             for i, line in enumerate(plate_not_detected.split('\n')):
                                                 w_, _ = cv2.getTextSize(line, 5, 3, 3)[0]
 
@@ -258,16 +292,21 @@ def second_container(container_input, cap, model, frames, fps, address, given_ti
                                                 cv2.putText(blank_plate, line, (int((x_start - w_) / 2), y), 5, 3,
                                                             (255, 255, 255), 3, cv2.LINE_AA)
 
+                                            # Menggabungkan gambar motor dengan background image yang berisi pesan "Plate Not Detected"
                                             merge_frame = function_system.get_concat_v_resize(crop_motorcycle,
                                                                                               blank_plate)
+                                            # Menggabungkan frame yang telah dianotasi dengan hasil gabungan motor + pesan
                                             merge_frame_2 = function_system.get_concat_h_resize(annotated_frame[0],
                                                                                                 merge_frame)
 
+                                        # Menyimpan frame yang telah diproses ke dalam direktori
                                         directory_images = '../results/' + make_folder + "/images"
                                         filename_images = 'results_images_' + str((count_image + 1)) + '.jpg'
 
+                                        # Menyimpan image yang telah melalui proses deteksi objek
                                         cv2.imwrite(os.path.join(directory_images, filename_images), merge_frame_2)
 
+                                        # Menyimpan hasil ke database
                                         sql = "insert into results(address,datetime,image,video) values(%s,%s,%s,%s)"
                                         val = (address, make_folder, filename_images, filename_video)
                                         mycursor.execute(sql, val)
@@ -275,22 +314,27 @@ def second_container(container_input, cap, model, frames, fps, address, given_ti
 
                                         count_image += 1
             else:
+                # Jika frame gagal dibaca, keluar dari loop
                 break
 
+            # Jika telah memproses semua frame, menandakan pemrosesan selesai
             if step == frames - 1:
                 finish_generate = True
 
         cap.release()
         cv2.destroyAllWindows()
 
+        # Jika proses deteksi video selesai
         if finish_generate:
             st.success("Successfully Generate")
-            
+
+            # Button untuk memulai proses ulang jika diinginkan
             back_container = generate_container.button("Generate More")
             if back_container:
                 first_container(container)
 
 
+# Fungsi utama web untuk menampilkan UI Framework Streamlit
 def app(mydb, mycursor):
     st.title("Generate Video 📹")
     st.markdown(
@@ -300,5 +344,6 @@ def app(mydb, mycursor):
     )
     st.markdown("<p style='padding-top:20px'></p>", unsafe_allow_html=True)
 
+    # Memanggil function pertama untuk input data
     container_placeholder = st.empty()
     first_container(container_placeholder, mydb, mycursor)
